@@ -1,0 +1,257 @@
+---
+title: "qRT-PCR Screeing of IFNAR1 and IFNLR1 KO Monoclones"
+subtitle: 'Thesis_Code_1: Figures 4E and 5C'
+
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd('/Users/Tinaye/Dropbox/Thesis R Code/Thesis_Code_1')
+getwd()
+library(plyr);
+library(tidyverse) #for ggplot
+library(reshape2); #for melt function
+```
+
+#### This code and data includes results for endogenous IFNB KO as well, although the thesis addresses only IFNAR1 and IFNLR1 KO cells. Instead of being stimulated with an IFN, IFNB KO cells were stimulated with infection by NDV (New Castle Disease Virus) at an MOI of 2 for 16 hours. 
+
+### To begin:
+cA = A549 IFNAR1_KO
+cB = A549 INFLR1_KO
+cC = A549 INFB_KO
+(for the "no mock" graphs data will be extracted from these variables cA, cB and cC)
+
+```{r}
+getwd()
+
+cA <- read.csv("cA.csv")
+cB <- read.csv("cB.csv")
+cC <- read.csv("cC.csv")
+```
+
+```{r}
+cA
+cB
+cC
+```
+
+
+### For building the graphs, need to add auxiliar columns to use ggplot geom_bar functions. 
+A function to build these columns:
+```{r}
+trim <- function (x) gsub("^\\s+|\\s+$", "", x)
+
+c.parseType <- function(d,subtype) {
+  cellname <- "A549"
+  value <- "mock"
+  d$cType = grepl(value,d$Cell.Type) #check if the row contains mock word
+  d$cType <- factor(d$cType, labels = c(subtype,value) ) #for this new column, assign the factor levels
+  d$name <- gsub(d$cType, "", d$Cell.Type) #create a name column that will contain the x-axis values
+  d$name <- gsub(subtype, "", d$name) #gsub is to replace strings
+   d$name <- gsub("\\+", "", d$name) #replace the + 
+   d$name <- gsub(cellname, "", d$name) #replace the A549
+   d$name <- trim(d$name) #replace blank spaces at the end and at the beginning of the string
+   d$name <- as.factor(d$name) #factor variable in r
+   d$ID <- seq.int(nrow(d)) #just a sequence
+   d$name <- reorder(d$name, d$ID) #factor level reordering for not altering the xaxis order
+   d$cType <- reorder(d$cType, d$ID) #factor level reordering for not altering the xaxis order
+  
+  return(d)
+}
+cA <- c.parseType(cA,"+IFNB")
+cB <- c.parseType(cB,"+IFNL")
+cC <- c.parseType(cC,"+NDV")
+cA
+cB
+cC
+```
+#### For the cA data, it is detected that a non-numerical value is avoiding the transformation to numeric and the import has given a factor variable. Lets transform to numeric. (For the cB and cC no need to do that). 
+
+```{r}
+cA$RIG.I.Copy.Number <- as.numeric(levels(cA$RIG.I.Copy.Number))[cA$RIG.I.Copy.Number]
+
+
+# sapply(cA,class)
+# sapply(cB,class)
+# sapply(cC,class)
+```
+
+```{r}
+###a function to avoid repeating code
+# 
+# g1.plot <- function(d, column,title){
+#   vlim <- c(0,10);
+#   g <-  ggplot() + 
+#     geom_bar(data = d, aes(x = name, y = column, fill = cType), position = "dodge", stat = "identity")+
+#     ggtitle(paste("A549 ",title))+
+#   labs(y="Relative Expression", x = "") #+coord_cartesian(ylim = vlim) 
+#     return(g)
+# }
+# 
+# g1.plot(cA, cA$MXA.Copy.Number, "IFNAR1_KO +IFNB (MXA)")
+# g1.plot(cB, cB$MXA.Copy.Number, "IFNLR1_KO +IFNB (MXA)")
+# g1.plot(cC, cC$MXA.Copy.Number, "IFNB_KO +IFNB (MXA)")
+# ```
+# To zoom data in the y-axis uncomment the +coord_cartesian(ylim = vlim) and adjust vlim with y limits value.
+# 
+# ```{r}
+# #just call the function for the RIG-I values
+# g1.plot(cA, cA$RIG.I.Copy.Number,"IFNAR1_KO +IFNB (RIG-I)")
+# g1.plot(cB, cB$RIG.I.Copy.Number,"IFNLR1_KO +IFNB (RIG-I)")
+# g1.plot(cC, cC$RIG.I.Copy.Number,"IFNB_KO +IFNB (RIG-I)")
+```
+
+```{r}
+#this was just to check coherence in the variables
+# sapply(cB,class)
+# sapply(cB,levels)
+```
+
+
+
+
+```{r}
+## For the second set of graphs:
+#Could use the excel tabs with "no mock". But for reusing the columns already included in the data, I just filter and adapt the current data used for the first set of graphs.
+
+c.nomock <- function(d){
+  value <- "mock"
+ d$filter = grepl(value,d$Cell.Type) #it contains mock word?
+ d$filter[1]= FALSE #WT mock should be included
+ d$name <- as.character(levels(d$name)[d$name]) #transform to character to manipulate it
+ d$name[1]= "WT mock" #WT mock should be included
+ d$name <- as.factor(d$name) #back to factor
+ d <- d[d$filter == FALSE,]; #remove those rows that have 'mock'.
+ d$name <- reorder(d$name, d$ID) #factor level reordering for not altering the xaxis order
+ return(d)
+
+}
+
+cAnoM <- c.nomock(cA)
+cBnoM <- c.nomock(cB)
+cCnoM <- c.nomock(cC)
+cAnoM
+cBnoM
+cCnoM
+
+```
+
+```{r}
+# #another function for second set of graphs (here there is no need to use the fill parameter)
+# 
+# g2.plot <- function(d, column,title){
+#   vlim <- c(0,10);
+#   g <-  ggplot() + 
+#     geom_bar(data = d, aes(x = name, y = column), position = "dodge", stat = "identity")+
+#     ggtitle(paste("A549 ",title))+
+#      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0))+
+#   labs(y="Relative Expression", x = "") #+coord_cartesian(ylim = vlim)
+#   
+#     return(g)
+# }
+# 
+# g2.plot(cAnoM, cAnoM$MXA.Copy.Number,"IFNAR1_KO +IFNB ( MXA )")
+# g2.plot(cAnoM, cAnoM$RIG.I.Copy.Number,"IFNAR1_KO +IFNB (RIG-I)")
+# g2.plot(cBnoM, cBnoM$MXA.Copy.Number,"IFNLR1_KO +IFNL (MXA)")
+# g2.plot(cBnoM, cBnoM$RIG.I.Copy.Number,"IFNLR1_KO +IFNL (RIG-I)")
+# g2.plot(cCnoM, cCnoM$MXA.Copy.Number,"IFNB_KO +NDV (MXA)")
+# g2.plot(cCnoM, cCnoM$RIG.I.Copy.Number,"IFNB_KO +NDV (RIG-I)") 
+```
+
+### For the final graphs [as incuded in the thesis manuscript],
+Apply function to mix (melt) for plotting.
+
+```{r}
+#Initially, the A549 wildtype mock was removed using this line of the code: 
+    ##  aux_ <- d[-1,]; #command from r to remove first row containing WT mock
+#But then I decided to keep it... 
+#  aux_ <- d[-1,]; #command from r to remove first row
+
+
+c.graph3 <- function(d){
+  aux_ <- d[,];
+  aux_$Cell.Type <- NULL
+  aux_$cType <- NULL
+  aux_$ID <- NULL
+  aux_$filter <- NULL
+  #aux_
+  aux_ <- melt(aux_, id = "name")
+  aux_$variable <- gsub("MXA.Copy.Number", "MXA", aux_$variable)
+  aux_$variable <- gsub("RIG.I.Copy.Number", "RIG-I", aux_$variable)
+  return(aux_)
+  
+}
+
+
+
+cAnom3 <- c.graph3(cAnoM);
+cBnom3 <- c.graph3(cBnoM);
+cCnom3 <- c.graph3(cCnoM);
+cAnom3
+cBnom3
+cCnom3
+
+```
+
+```{r}
+#as well, need another function to adapt to the melt result of data
+g3.plot <- function(d,title){
+  vlim <- c(0,10);
+  g <-  ggplot() + 
+    geom_bar(data = d, aes(x = name, y = value, fill = variable), position = "dodge", stat = "identity")+
+    ggtitle(paste("A549",title))+
+  labs(y="Relative Expression", x = "") + #+coord_cartesian(ylim = vlim) 
+ scale_y_log10() +
+    ylim(0, 1100) + 
+    theme(axis.text.x = element_text(size = 15, angle = 45, hjust = 1))
+     return(g)
+}
+
+
+##
+
+g4.plot <- function(d,title){
+  vlim <- c(0,10);
+  g <-  ggplot() + 
+    geom_bar(data = d, aes(x = name, y = value, fill = variable), position = "dodge", stat = "identity")+
+    ggtitle(paste("A549",title))+
+  labs(y="Relative Expression", x = "") + #+coord_cartesian(ylim = vlim) 
+ scale_y_log10() +
+    ylim(0, 300) + 
+    theme(axis.text.x = element_text(size = 15, angle = 45, hjust = 1))
+     return(g)
+}
+
+
+
+g3.plot(cAnom3, "IFNAR1_KO +IFNB")
+g4.plot(cBnom3, "IFNLR1_KO +IFNL")
+
+
+
+# 
+# #Seems to need a log_scale?
+# 
+# g3.logplot <- function(d,title){
+#   vlim <- c(0,10);
+#   g <-  ggplot() + 
+#     geom_bar(data = d, aes(x = name, y = value, fill = variable), position = "dodge", stat = "identity")+
+#     ggtitle(paste("A549",title))+
+#   labs(y="Log10 Copy Number", x = "")  + #+coord_cartesian(ylim = vlim) 
+#     scale_y_log10()+ 
+#     theme(axis.text.x = element_text(size = 15, angle = 45, hjust = 1))
+#     return(g)
+# }
+# 
+# g3.logplot(cCnom3, "IFNB_KO +NDV")
+
+```
+
+
+
